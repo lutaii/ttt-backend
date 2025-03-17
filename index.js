@@ -7,13 +7,14 @@ app.use(express.json())
 const lobbies = {}
 
 function generateLobbyCode(length = 4) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let result = ''
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
     for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() + chars.length))
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
-    return result
-}
+    console.log('Generated code:', result);
+    return result;
+  }
 
 app.get('/', (req, res) => {
     res.send('Hello from Tic Tac Toe Backend!')
@@ -38,6 +39,7 @@ app.post('/lobby', (req, res) => {
         gameMode: 'classic',
         status: 'waiting'
     }
+    console.log('Lobby created:', lobby)
 
     lobbies[code] = lobby
     res.status(201).json({ code, lobby })
