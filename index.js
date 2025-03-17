@@ -36,44 +36,24 @@ wss.on('connection', (ws) => {
     if (ws.lobbyCode && ws.uid) {
       const lobby = lobbies[ws.lobbyCode];
       if (lobby) {
-        // Remove the user from the players array.
-        lobby.players = lobby.players.filter(player => player !== ws.uid);
-        console.log(`User with uid ${ws.uid} left lobby ${ws.lobbyCode}`);
-        
-        if (lobby.players.length === 0) {
-          lobby.status = 'closed';
-          console.log(`Lobby ${ws.lobbyCode} is now closed.`);
-          // Broadcast lobbyClosed event.
-          wss.clients.forEach(client => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              client.lobbyCode === ws.lobbyCode
-            ) {
-              client.send(JSON.stringify({
-                event: 'lobbyClosed',
-                message: 'Lobby closed due to no players'
-              }));
-            }
-          });
-          delete lobbies[ws.lobbyCode];
-          console.log(`Lobby ${ws.lobbyCode} deleted because it is empty.`);
-        } else {
-          // Broadcast updated lobby state with disconnect message.
-          wss.clients.forEach(client => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              client.lobbyCode === ws.lobbyCode
-            ) {
-              const update = {
-                event: 'lobbyUpdated',
-                lobby,
-                disconnectMessage: `User with uid ${ws.uid} disconnected`
-              };
-              console.log('Broadcasting update:', update);
-              client.send(JSON.stringify(update));
-            }
-          });
-        }
+        // Immediately mark the lobby as closed.
+        lobby.status = 'closed';
+        console.log(`Lobby ${ws.lobbyCode} is now closed due to disconnect of uid ${ws.uid}.`);
+        // Broadcast a lobbyClosed event to all clients in that lobby.
+        wss.clients.forEach(client => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            client.lobbyCode === ws.lobbyCode
+          ) {
+            client.send(JSON.stringify({
+              event: 'lobbyClosed',
+              message: 'Lobby closed due to a disconnect. Game over.'
+            }));
+          }
+        });
+        // Delete the lobby from memory.
+        delete lobbies[ws.lobbyCode];
+        console.log(`Lobby ${ws.lobbyCode} deleted.`);
       }
     }
   });
@@ -130,6 +110,8 @@ app.post('/lobby', (req, res) => {
   res.status(201).json({ code, lobby });
 });
 
+const MAX_PLAYERS = 2;
+
 // Endpoint to join an existing lobby.
 app.post('/lobby/:code/join', (req, res) => {
   const code = req.params.code;
@@ -142,6 +124,9 @@ app.post('/lobby/:code/join', (req, res) => {
   // Check if the lobby is still open.
   if (lobby.status !== 'waiting') {
     return res.status(400).json({ error: 'Lobby is closed' });
+  }
+  if (lobby.players.length >= MAX_PLAYERS) {
+    return res.status(400).json({ error: 'Lobby is full' });
   }
 
   const uid = req.body.uid;
