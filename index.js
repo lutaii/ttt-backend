@@ -51,10 +51,13 @@ app.post('/lobby/:code/join', (req, res) => {
         return res.status(404).json({ error: 'Lobby not found' })
     }
 
-    const player = req.body.player || 'Anonymous'
+    const uid = req.body.uid
+    if (!uid) {
+        return res.status(400).json({ error: 'Firebase UID is required' })
+    }
 
-    if (!lobby.players.includes(player)) {
-        lobby.players.push(player)
+    if (!lobby.players.includes(uid)) {
+        lobby.players.push(uid)
     }
 
     res.status(200).json({ message: `Joined lobby ${code}`, lobby })
